@@ -371,6 +371,22 @@ app.get('/api/analytics',authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/v3/api-log', async (req, res) => {
+  try {
+    // Execute the query
+    const [rows] = await pool.query('SELECT * FROM api_usage_logs ORDER BY id DESC');  // parameterized under the hood :contentReference[oaicite:0]{index=0}
+
+    // Send back JSON array of log objects
+    res.json({ success: true, logs: rows });
+  } catch (error) {
+    console.error('Error fetching usage logs:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+// https.createServer(options, app).listen(port, () => {
+//   console.log(`HTTPS Server running on port ${port}`);
+// });

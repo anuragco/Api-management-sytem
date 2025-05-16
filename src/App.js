@@ -6,6 +6,7 @@ import Login from './Pages/Login';
 import Dashboard from './Pages/Dashboard';
 import UsersPage from './Pages/Users';
 import apiClient, { authAPI } from './Intercepter/APiClient';
+import LogsTable from './Pages/ApiRequest';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children }) => {
@@ -89,6 +90,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/api-requests" 
+            element={
+              <ProtectedRoute>
+                <LogsTable />
               </ProtectedRoute>
             } 
           />

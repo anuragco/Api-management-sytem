@@ -37,7 +37,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           title="API Requests" 
           collapsed={collapsed} 
           active={activeTab === 'requests'} 
-          onClick={() => setActiveTab('requests')} 
+          onClick={() => window.location.href = '/api-requests'} 
         />
         <SidebarItem 
           icon={<AlertTriangle />} 
