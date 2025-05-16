@@ -302,6 +302,75 @@ app.post("/api/users/increase-quota", authenticateToken, async (req, res) => {
 });
 
 
+app.get('/api/analytics',authenticateToken, async (req, res) => {
+  try {
+    // 1️⃣ Define all four queries
+    const userCountQ = pool.query(
+      'SELECT COUNT(*) AS total_users FROM users'
+    );
+    const requestCountQ = pool.query(
+      'SELECT COUNT(*) AS total_requests FROM api_usage_logs'
+    );
+    const rateQ = pool.query(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(response_status BETWEEN 200 AND 299) AS success,
+        SUM(response_status >= 400)        AS fail
+      FROM api_usage_logs
+    `);
+   const errorsQ = pool.query(`
+  SELECT
+    id               AS id,        -- grab the primary key
+    used_at          AS timestamp,
+    response_payload AS error,
+    response_status  AS code,
+    endpoint
+  FROM api_usage_logs
+  WHERE response_status >= 400
+  ORDER BY used_at DESC
+  LIMIT 5
+`);
+
+
+
+    // 2️⃣ Execute them in parallel
+    const [
+      [usersRows],
+      [requestsRows],
+      [rateRows],
+      [errorsRows]
+    ] = await Promise.all([userCountQ, requestCountQ, rateQ, errorsQ]);
+
+    // 3️⃣ Extract each metric from the first row of each result
+    const total_users    = usersRows[0]?.total_users    || 0;
+    const total_requests = requestsRows[0]?.total_requests || 0;
+    const { total = 0, success = 0, fail = 0 } = rateRows[0] || {};
+    const recent_errors  = errorsRows;
+
+    // 4️⃣ Compute percentages
+    const successRate = total > 0
+      ? ((success / total) * 100).toFixed(1)
+      : '0.0';
+    const failRate = total > 0
+      ? ((fail / total) * 100).toFixed(1)
+      : '0.0';
+
+    // 5️⃣ Return the full analytics payload
+    res.json({
+      total_users,
+      total_requests,
+      api_success_rate: {
+        successful: `${successRate}%`,
+        failed:     `${failRate}%`
+      },
+      recent_errors
+    });
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });

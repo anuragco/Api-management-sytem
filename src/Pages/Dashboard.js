@@ -10,29 +10,18 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
-  BarChart,
-  Bar
+  Legend
 } from 'recharts';
-import { Menu, Users, Server, AlertTriangle, CheckCircle, Activity, Settings, LogOut, Home } from 'lucide-react';
-import Sidebar from '../Components/Sidebar';
+import { Users, Server, CheckCircle } from 'lucide-react';
+import apiClient from '../Intercepter/APiClient';
+
 export default function Dashboard() {
-  const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  // Mock data - in a real application, this would come from your API
-  const userData = {
-    totalUsers: 1287,
-    growth: "+12.5%",
-    newToday: 24
-  };
-  
-  const apiData = {
-    totalRequests: 45872,
-    successRate: "96.8%",
-    failedRequests: 1468
-  };
-  
+  // Mock data for weekly chart - in a real app, this would come from your API
   const weeklyData = [
     { name: 'Mon', requests: 1200, success: 1180, failed: 20 },
     { name: 'Tue', requests: 1400, success: 1350, failed: 50 },
@@ -43,65 +32,107 @@ export default function Dashboard() {
     { name: 'Sun', requests: 1200, success: 1150, failed: 50 },
   ];
   
-  const pieData = [
-    { name: 'Successful', value: 96.8 },
-    { name: 'Failed', value: 3.2 },
-  ];
-  
-  const errorLogs = [
-    { id: 1, timestamp: '2025-05-15 09:32:14', error: 'Rate limit exceeded', code: 429, endpoint: '/gemini/text' },
-    { id: 2, timestamp: '2025-05-15 08:15:47', error: 'Invalid API key', code: 401, endpoint: '/gemini/chat' },
-    { id: 3, timestamp: '2025-05-15 07:58:03', error: 'Timeout error', code: 504, endpoint: '/gemini/generate' },
-    { id: 4, timestamp: '2025-05-15 06:42:19', error: 'Invalid request format', code: 400, endpoint: '/gemini/text' },
-    { id: 5, timestamp: '2025-05-14 23:11:35', error: 'Rate limit exceeded', code: 429, endpoint: '/gemini/chat' },
-  ];
-  
   const COLORS = ['#4CAF50', '#F44336'];
-  
-  const toggleSidebar = () => {
-    setCollapsed(!collapsed);
+
+  // Fetch analytics data
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.get('/api/analytics');
+        setAnalytics(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch analytics:', err);
+        setError('Failed to fetch analytics data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
+
+  // Prepare pie chart data from API response
+  const getPieData = () => {
+    if (!analytics) return [];
+    
+    return [
+      { name: 'Successful', value: parseFloat(analytics.api_success_rate.successful) },
+      { name: 'Failed', value: parseFloat(analytics.api_success_rate.failed) }
+    ];
+  };
+
+  // Parse error JSON from API response
+  const parseErrorJson = (errorJson) => {
+    try {
+      return JSON.parse(errorJson).error;
+    } catch (e) {
+      return errorJson;
+    }
   };
   
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-
-        
-        
+      {/* Sidebar - simplified for this example */}
+      <div className="w-64 bg-gray-900">
+        <div className="p-4">
+          <h2 className="text-white font-semibold text-xl">API Dashboard</h2>
+        </div>
+        <nav className="mt-6">
+          <SidebarItem 
+            icon={<Server />} 
+            title="Overview" 
+            active={activeTab === 'overview'} 
+            onClick={() => setActiveTab('overview')} 
+          />
+          <SidebarItem 
+            icon={<Users />} 
+            title="Users" 
+            active={activeTab === 'users'} 
+            onClick={() => setActiveTab('users')} 
+          />
+          <SidebarItem 
+            icon={<CheckCircle />} 
+            title="Error Logs" 
+            active={activeTab === 'errors'} 
+            onClick={() => setActiveTab('errors')} 
+          />
+        </nav>
+      </div>
       
       {/* Main content */}
       <div className="flex-1 overflow-y-auto">
         <header className="bg-white shadow px-6 py-4">
-          <h1 className="text-2xl font-semibold text-gray-800">
-            {activeTab === 'overview' && 'Dashboard Overview'}
-            {activeTab === 'users' && 'User Analytics'}
-            {activeTab === 'requests' && 'API Requests'}
-            {activeTab === 'errors' && 'Error Logs'}
-            {activeTab === 'analytics' && 'Advanced Analytics'}
-            {activeTab === 'settings' && 'Dashboard Settings'}
-          </h1>
+          <h1 className="text-2xl font-semibold text-gray-800">Dashboard Overview</h1>
         </header>
         
         <main className="p-6">
-          {activeTab === 'overview' && (
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="text-gray-500">Loading analytics data...</div>
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 p-4 rounded-md border border-red-200 text-red-600">
+              {error}
+            </div>
+          ) : (
             <div className="space-y-6">
               {/* Stats cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard 
                   title="Total Users" 
-                  value={userData.totalUsers} 
-                  change={userData.growth} 
+                  value={analytics.total_users} 
                   icon={<Users className="text-blue-500" />} 
                 />
                 <StatCard 
                   title="Total API Requests" 
-                  value={apiData.totalRequests} 
+                  value={analytics.total_requests} 
                   icon={<Server className="text-green-500" />} 
                 />
                 <StatCard 
                   title="API Success Rate" 
-                  value={apiData.successRate} 
+                  value={analytics.api_success_rate.successful} 
                   icon={<CheckCircle className="text-indigo-500" />} 
                 />
               </div>
@@ -132,16 +163,16 @@ export default function Dashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={pieData}
+                          data={getPieData()}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
-                          label={({name, percent}) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                          label={({name, value}) => `${name}: ${value}%`}
                         >
-                          {pieData.map((entry, index) => (
+                          {getPieData().map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
@@ -169,10 +200,14 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {errorLogs.slice(0, 3).map((log) => (
+                      {analytics.recent_errors.map((log) => (
                         <tr key={log.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.timestamp}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500">{log.error}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(log.timestamp).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500">
+                            {parseErrorJson(log.error)}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.code}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">{log.endpoint}</td>
                         </tr>
@@ -183,42 +218,6 @@ export default function Dashboard() {
               </div>
             </div>
           )}
-          
-          {activeTab === 'errors' && (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800">All Error Logs</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endpoint</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {errorLogs.map((log) => (
-                      <tr key={log.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.timestamp}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500">{log.error}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{log.code}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">{log.endpoint}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          
-          {(activeTab === 'users' || activeTab === 'requests' || activeTab === 'analytics' || activeTab === 'settings') && (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <h3 className="text-lg text-gray-500">This section is under development</h3>
-            </div>
-          )}
         </main>
       </div>
     </div>
@@ -226,17 +225,17 @@ export default function Dashboard() {
 }
 
 // Sidebar Item Component
-function SidebarItem({ icon, title, collapsed, active = false, onClick }) {
+function SidebarItem({ icon, title, active = false, onClick }) {
   return (
     <div 
       onClick={onClick}
       className={`flex items-center py-3 px-4 cursor-pointer transition-colors 
         ${active ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
     >
-      <div className={`${collapsed ? 'mx-auto' : 'mr-3'}`}>
+      <div className="mr-3">
         {icon}
       </div>
-      {!collapsed && <span>{title}</span>}
+      <span>{title}</span>
     </div>
   );
 }
