@@ -17,7 +17,7 @@ const bcrypt = require("bcrypt");
 const authenticateToken = require("./Middleware/authenticate");
 const https = require('https');
 const fs = require('fs');
-
+const redis = require('redis');
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -29,6 +29,40 @@ const options = {
   key: fs.readFileSync('./Cert/privkey.pem'),
   cert: fs.readFileSync('./Cert/cert.pem')
 };
+let redisClient;
+
+// Initialize Redis client and connect
+async function initRedisClient() {
+  redisClient = redis.createClient({
+    // Redis Cloud configuration
+    url: 'redis://redis-13956.c85.us-east-1-2.ec2.redns.redis-cloud.com:13956',
+    password: 'PiTydh6CS0ZBzrrL9uKDbHcQ0jp7juGO', 
+    socket: {
+      connectTimeout: 10000, 
+      reconnectStrategy: (retries) => {
+        return Math.min(retries * 500, 3000);
+      }
+    }
+  });
+
+  // Set up event handlers
+  redisClient.on('error', (err) => {
+    console.error('Redis Error:', err);
+  });
+
+  redisClient.on('connect', () => {
+    console.log('Connected to Redis');
+  });
+  
+  // Connect to Redis
+  await redisClient.connect();
+}
+
+// Initialize the Redis client
+initRedisClient().catch(err => {
+  console.error('Failed to initialize Redis:', err);
+});
+
 
 const API_KEY = process.env.GEMINI_API_KEY;
 console.log("API_KEY", API_KEY);
@@ -162,7 +196,7 @@ app.get("/api/users", authenticateToken, async (req, res) => {
 
 let isRequestInProgress = false;
 let lastRequestTime = 0;
-const COOLDOWN_MS = 5000;
+const COOLDOWN_MS = 2000;
 
 async function sendToGemini(promptText) {
   try {
@@ -188,8 +222,12 @@ async function sendToGemini(promptText) {
   }
 }
 
+const CACHE_EXPIRATION = 3600; 
+
 app.post("/api/v3/modal/ai", checkApiAccess, async (req, res) => {
   const now = Date.now();
+  
+  // Check cooldown
   if (isRequestInProgress || now - lastRequestTime < COOLDOWN_MS) {
     logApiUsage(
       req,
@@ -207,53 +245,124 @@ app.post("/api/v3/modal/ai", checkApiAccess, async (req, res) => {
   isRequestInProgress = true;
   lastRequestTime = now;
 
-  const { prompt } = req.body;
+  try {
+    const { prompt } = req.body;
 
-  if (!prompt || typeof prompt !== "string") {
+    if (!prompt || typeof prompt !== "string") {
+      isRequestInProgress = false;
+      logApiUsage(
+        req,
+        "/api/v3/modal/ai",
+        "POST",
+        req.body,
+        { error: "Invalid prompt" },
+        400
+      );
+      return res.status(400).json({ error: "Invalid prompt" });
+    }
+
+    // Generate a unique cache key
+    const cacheKey = `ai_response:${Buffer.from(prompt).toString('base64')}`;
+    
+    
+    let response;
+    try {
+      const cachedResponse = await redisClient.get(cacheKey);
+      
+      if (cachedResponse) {
+        
+        console.log('Cache hit for prompt:', prompt);
+        response = { answer: JSON.parse(cachedResponse) };
+      } else {
+        
+        console.log('Cache miss for prompt:', prompt);
+        const promptengineered = `Important: You are given a Questions along with 4 Options. You have to answer the question with the correct option name. Do not add any other text. Question: ${prompt}`;
+        response = await sendToGemini(promptengineered);
+        
+       
+        if (response.answer && !response.error) {
+          await redisClient.setEx(
+            cacheKey,
+            CACHE_EXPIRATION,
+            JSON.stringify(response.answer.trim())
+          );
+        }
+      }
+    } catch (redisError) {
+      console.error('Redis operation failed:', redisError);
+      
+      const promptengineered = `Important: You are given a Questions along with 4 Options. You have to answer the question with the correct option name. Do not add any other text. Question: ${prompt}`;
+      response = await sendToGemini(promptengineered);
+    }
+
+    
+    setTimeout(() => {
+      isRequestInProgress = false;
+    }, COOLDOWN_MS);
+
+    if (response.error) {
+      logApiUsage(
+        req,
+        "/api/v3/modal/ai",
+        "POST",
+        req.body,
+        { error: response.error },
+        500
+      );
+      return res.status(500).json({ error: response.error });
+    }
+
+    // Only increment API usage for non-cached responses
+    if (!cachedResponse) {
+      try {
+        await pool.query(
+          "UPDATE users SET api_used = api_used + 1 WHERE registration_number = ?",
+          [req.user.registration_number]
+        );
+      } catch (err) {
+        console.error("Error updating api_used:", err);
+      }
+    }
+
+    const responseData = { answer: response.answer.trim() };
+    logApiUsage(req, "/api/v3/modal/ai", "POST", req.body, responseData, 200);
+    res.json(responseData);
+    
+  } catch (error) {
     isRequestInProgress = false;
+    console.error("Error processing request:", error);
     logApiUsage(
       req,
       "/api/v3/modal/ai",
       "POST",
       req.body,
-      { error: "Invalid prompt" },
-      400
-    );
-    return res.status(400).json({ error: "Invalid prompt" });
-  }
-
-  const promptengineered = `Important: You are given a Questions along with 4 Options. You have to answer the question with the correct option name. Do not add any other text. Question: ${prompt}`;
-  const response = await sendToGemini(promptengineered);
-
-  setTimeout(() => {
-    isRequestInProgress = false;
-  }, COOLDOWN_MS);
-
-  if (response.error) {
-    logApiUsage(
-      req,
-      "/api/v3/modal/ai",
-      "POST",
-      req.body,
-      { error: response.error },
+      { error: "Internal server error" },
       500
     );
-    return res.status(500).json({ error: response.error });
+    res.status(500).json({ error: "Internal server error" });
   }
-
-  try {
-    await pool.query(
-      "UPDATE users SET api_used = api_used + 1 WHERE registration_number = ?",
-      [req.user.registration_number]
-    );
-  } catch (err) {
-    console.error("Error updating api_used:", err);
-  }
-
-  const responseData = { answer: response.answer.trim() };
-  logApiUsage(req, "/api/v3/modal/ai", "POST", req.body, responseData, 200);
-  res.json(responseData);
 });
+
+// Graceful shutdown function to close Redis connection
+function gracefulShutdown() {
+  if (redisClient) {
+    redisClient.quit().then(() => {
+      console.log('Redis client disconnected');
+      process.exit(0);
+    }).catch(err => {
+      console.error('Error disconnecting Redis:', err);
+      process.exit(1);
+    });
+  } else {
+    process.exit(0);
+  }
+}
+
+// Listen for termination signals
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
+
 
 app.post("/api/users/increase-quota", authenticateToken, async (req, res) => {
   const { user_id, increase_amount } = req.body;
