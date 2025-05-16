@@ -193,7 +193,7 @@ app.post("/api/v3/modal/ai", checkApiAccess, async (req, res) => {
   if (isRequestInProgress || now - lastRequestTime < COOLDOWN_MS) {
     logApiUsage(
       req,
-      "/ask-gemini",
+      "/api/v3/modal/ai",
       "POST",
       req.body,
       { error: "Cooldown in progress" },

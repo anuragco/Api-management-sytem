@@ -17,8 +17,8 @@ async function checkApiAccess(req, res, next) {
     );
 
     if (rows.length === 0) {
-      await logApiUsage(req, '/ask-gemini', 'POST', req.body, { error: "User not found" }, 404);
-      return res.status(404).json({ error: 'User not found' });
+      await logApiUsage(req, '/ask-gemini', 'POST', req.body, { error: "Not Authorized" }, 401);
+      return res.status(404).json({ error: 'Not Authorized' });
     }
 
     const user = rows[0];

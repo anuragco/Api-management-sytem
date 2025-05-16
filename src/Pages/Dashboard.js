@@ -90,7 +90,7 @@ export default function Dashboard() {
             icon={<Users />} 
             title="Users" 
             active={activeTab === 'users'} 
-            onClick={() => setActiveTab('users')} 
+            onClick={() => window.location.href = '/users'} 
           />
           <SidebarItem 
             icon={<CheckCircle />} 
