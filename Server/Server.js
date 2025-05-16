@@ -222,6 +222,8 @@ async function sendToGemini(promptText) {
   }
 }
 
+const CACHE_EXPIRATION = 3600; 
+
 app.post("/api/v3/modal/ai", checkApiAccess, async (req, res) => {
   const now = Date.now();
   
