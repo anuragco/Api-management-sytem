@@ -4,7 +4,8 @@ const {logApiUsage} = require('../Utils/apislogger');
 
 async function checkApiAccess(req, res, next) {
   const registrationNumber = req.headers['registration-number'];
-
+  console.log('Registration Number:', registrationNumber);
+  console.log('Request Body:', req.body);
   if (!registrationNumber) {
     await logApiUsage(req, '/api/v3/modal/ai', 'POST', req.body, { error: "Missing registration number" }, 400);
     return res.status(400).json({ error: 'Missing registration number' });

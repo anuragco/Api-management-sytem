@@ -3,7 +3,7 @@ const pool = require('../../Config/Db');
 async function logApiUsage(req, endpoint, method, requestPayload, responsePayload, statusCode) {
   try {
     const userId = req.user?.id || null;
-    const apiKey = req.headers['registration_number'] || req.user?.registration_number || 'UNKNOWN';
+    const apiKey = req.headers['registration-number'] || req.user?.registration_number || 'UNKNOWN';
 
     await pool.query(
       `INSERT INTO api_usage_logs (
