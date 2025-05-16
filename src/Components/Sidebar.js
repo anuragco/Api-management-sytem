@@ -39,7 +39,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           active={activeTab === 'requests'} 
           onClick={() => window.location.href = '/api-requests'} 
         />
-        <SidebarItem 
+        {/* <SidebarItem 
           icon={<AlertTriangle />} 
           title="Error Logs" 
           collapsed={collapsed} 
@@ -59,7 +59,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           collapsed={collapsed} 
           active={activeTab === 'settings'} 
           onClick={() => setActiveTab('settings')} 
-        />
+        /> */}
 
         <div className="mt-auto pt-20">
           <SidebarItem 

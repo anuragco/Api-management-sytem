@@ -371,7 +371,7 @@ app.get('/api/analytics',authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/v3/api-log', async (req, res) => {
+app.get('/api/v3/api-log',authenticateToken, async (req, res) => {
   try {
     // Execute the query
     const [rows] = await pool.query('SELECT * FROM api_usage_logs ORDER BY id DESC');  // parameterized under the hood :contentReference[oaicite:0]{index=0}
@@ -384,9 +384,9 @@ app.get('/api/v3/api-log', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
-// https.createServer(options, app).listen(port, () => {
-//   console.log(`HTTPS Server running on port ${port}`);
+// app.listen(port, () => {
+//   console.log(`Server is running on port ${port}`);
 // });
+https.createServer(options, app).listen(port, () => {
+  console.log(`HTTPS Server running on port ${port}`);
+});
