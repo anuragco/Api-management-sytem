@@ -188,7 +188,7 @@ async function sendToGemini(promptText) {
   }
 }
 
-app.post("/ask-gemini", checkApiAccess, async (req, res) => {
+app.post("/api/v3/modal/ai", checkApiAccess, async (req, res) => {
   const now = Date.now();
   if (isRequestInProgress || now - lastRequestTime < COOLDOWN_MS) {
     logApiUsage(
@@ -213,7 +213,7 @@ app.post("/ask-gemini", checkApiAccess, async (req, res) => {
     isRequestInProgress = false;
     logApiUsage(
       req,
-      "/ask-gemini",
+      "/api/v3/modal/ai",
       "POST",
       req.body,
       { error: "Invalid prompt" },
@@ -232,7 +232,7 @@ app.post("/ask-gemini", checkApiAccess, async (req, res) => {
   if (response.error) {
     logApiUsage(
       req,
-      "/ask-gemini",
+      "/api/v3/modal/ai",
       "POST",
       req.body,
       { error: response.error },
@@ -251,7 +251,7 @@ app.post("/ask-gemini", checkApiAccess, async (req, res) => {
   }
 
   const responseData = { answer: response.answer.trim() };
-  logApiUsage(req, "/ask-gemini", "POST", req.body, responseData, 200);
+  logApiUsage(req, "/api/v3/modal/ai", "POST", req.body, responseData, 200);
   res.json(responseData);
 });
 
