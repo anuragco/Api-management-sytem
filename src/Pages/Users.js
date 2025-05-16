@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '../Components/Sidebar';
 import { Eye, EyeOff, Plus, Search, User, Key, RefreshCw } from 'lucide-react';
-
+import apiClient from '../Intercepter/APiClient';
 export default function UsersPage() {
   const [users, setUsers] = useState([
     { regNo: 'A123', name: 'John Doe', apiLimit: 10000, apiUsed: 7500, apiKey: 'key-A123' },
@@ -27,6 +27,44 @@ export default function UsersPage() {
   const itemsPerPage = 5;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [newApiKey, setNewApiKey] = useState('');
+
+   const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/api/users');
+      
+      if (response.data.success) {
+        // Transform the API response to match our component's expected format
+        const formattedUsers = response.data.users.map(user => ({
+          id: user.id,
+          regNo: user.registration_number,
+          name: user.name,
+          apiLimit: user.api_limit,
+          apiUsed: user.api_used,
+          apiKey: null // API keys are not returned in the list for security
+        }));
+        
+        setUsers(formattedUsers);
+        setError(null);
+      } else {
+        setError('Failed to fetch users');
+      }
+    } catch (err) {
+      setError('Error connecting to server');
+      console.error('Error fetching users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     const result = search
@@ -51,21 +89,40 @@ export default function UsersPage() {
     setApiKeyModal(true);
   };
 
-  const handleIncreaseQuota = () => {
+  const handleIncreaseQuota = async () => {
     const amount = parseInt(increaseAmount);
     if (isNaN(amount) || amount <= 0) {
       alert('Please enter a valid positive number');
       return;
     }
-    setUsers(users.map(u => (
-      u.regNo === selectedUser.regNo
-        ? { ...u, apiLimit: u.apiLimit + amount }
-        : u
-    )));
-    setIncreaseQuotaModal(false);
+
+    try {
+      const response = await apiClient.post('/api/users/increase-quota', {
+        user_id: selectedUser.id,
+        increase_amount: amount
+      });
+      
+      if (response.data.success) {
+        // Update the local state
+        setUsers(users.map(u => (
+          u.id === selectedUser.id
+            ? { ...u, apiLimit: u.apiLimit + amount }
+            : u
+        )));
+        setIncreaseQuotaModal(false);
+      } else {
+        alert('Failed to increase quota: ' + response.data.message);
+      }
+    } catch (err) {
+      alert('Error updating quota');
+      console.error('Error updating quota:', err);
+    }
   };
 
-  const handleAddUser = () => {
+
+  
+
+  const handleAddUser = async () => {
     if (!newUser.name || !newUser.regNo) {
       alert('Name and Registration Number are required');
       return;
@@ -76,17 +133,35 @@ export default function UsersPage() {
       return;
     }
     
-    const newApiKey = `key-${newUser.regNo}-${Math.random().toString(36).substring(2, 10)}`;
-    const userToAdd = { 
-      ...newUser, 
-      apiUsed: 0, 
-      apiKey: newApiKey 
-    };
-    
-    setUsers(prev => [...prev, userToAdd]);
-    setSelectedUser(userToAdd);
-    setAddUserModal(false);
-    setApiKeyModal(true);
+    try {
+      const response = await apiClient.post('/api/users/create', {
+        name: newUser.name,
+        reg_no: newUser.regNo,
+        api_limit: newUser.apiLimit
+      });
+      
+      if (response.data.success) {
+        const userToAdd = { 
+          id: response.data.user_id,
+          regNo: newUser.regNo, 
+          name: newUser.name,
+          apiLimit: newUser.apiLimit,
+          apiUsed: 0, 
+          apiKey: response.data.api_key 
+        };
+        
+        setUsers(prev => [...prev, userToAdd]);
+        setSelectedUser(userToAdd);
+        setNewApiKey(response.data.api_key); // Store the new API key
+        setAddUserModal(false);
+        setApiKeyModal(true);
+      } else {
+        alert('Failed to add user: ' + response.data.message);
+      }
+    } catch (err) {
+      alert('Error adding user');
+      console.error('Error adding user:', err);
+    }
   };
 
   const resetAddUserForm = () => {
@@ -185,13 +260,7 @@ export default function UsersPage() {
                             >
                               <RefreshCw size={18} />
                             </button>
-                            <button
-                              onClick={() => openApiKeyModal(user)}
-                              className="text-green-600 hover:text-green-800 p-1"
-                              title="View API Key"
-                            >
-                              <Key size={18} />
-                            </button>
+                            
                           </div>
                         </td>
                       </tr>

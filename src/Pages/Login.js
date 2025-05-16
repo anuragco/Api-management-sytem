@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, User, LogIn, ChevronRight } from 'lucide-react';
+import { authAPI } from '../Intercepter/APiClient';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -7,21 +8,55 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   useEffect(() => {
     // Trigger animations after component mount
     setAnimateIn(true);
+    
+    // Check if user is already logged in
+    if (authAPI.isAuthenticated()) {
+      // Redirect to dashboard or another protected route
+      // In a real app, you would use React Router for navigation
+      // Example: history.push('/dashboard');
+      console.log('User already authenticated');
+    }
   }, []);
   
-  const handleSubmit = () => {
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    
+    // Clear previous errors
+    setErrorMessage('');
+    
+    // Basic validation
+    if (!email || !password) {
+      setErrorMessage('Please enter both email and password');
+      return;
+    }
+    
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const result = await authAPI.login(email, password);
+      
+      if (result.success) {
+        // In a real app, you would redirect to dashboard
+        // Example: history.push('/dashboard');
+        console.log('Login successful');
+        window.location.href = '/console'; // Simple redirect
+      } else {
+        setErrorMessage(result.message || 'Login failed');
+      }
+    } catch (error) {
+      setErrorMessage('An unexpected error occurred');
+      console.error('Login error:', error);
+    } finally {
       setIsLoading(false);
-      alert('Login attempt with: ' + email);
-      // In a real app, you would handle authentication here
-    }, 1500);
+    }
+    
+    // If remember me is not checked, we could set a shorter expiry time
+    // for the token in a real-world app
   };
   
   return (
@@ -67,7 +102,13 @@ export default function Login() {
             <p className="text-gray-600 mt-2">Sign in to your admin account</p>
           </div>
           
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {errorMessage && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+                {errorMessage}
+              </div>
+            )}
+            
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                 <User size={20} />
@@ -78,6 +119,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full py-3 pl-12 pr-4 text-gray-700 border rounded-lg outline-none focus:border-blue-500"
+                required
               />
             </div>
             
@@ -91,6 +133,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full py-3 pl-12 pr-4 text-gray-700 border rounded-lg outline-none focus:border-blue-500"
+                required
               />
             </div>
             
@@ -113,7 +156,7 @@ export default function Login() {
             </div>
             
             <button
-              onClick={handleSubmit}
+              type="submit"
               disabled={isLoading}
               className={`w-full flex items-center justify-center py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all ${isLoading ? 'opacity-70' : ''}`}
             >
@@ -124,7 +167,7 @@ export default function Login() {
               )}
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
-          </div>
+          </form>
           
           <div className="mt-8 text-center">
             <p className="text-gray-600">

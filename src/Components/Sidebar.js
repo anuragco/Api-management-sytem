@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Menu, Users, Server, AlertTriangle, Activity, Settings, LogOut, Home } from 'lucide-react';
-
+import apiClient, {authAPI} from '../Intercepter/APiClient';
 export default function Sidebar({ activeTab, setActiveTab }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -23,14 +23,14 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           title="Overview" 
           collapsed={collapsed} 
           active={activeTab === 'overview'} 
-          onClick={() => setActiveTab('overview')} 
+          onClick={() => window.location.href = '/console'} 
         />
         <SidebarItem 
           icon={<Users />} 
           title="Users" 
           collapsed={collapsed} 
           active={activeTab === 'users'} 
-          onClick={() => setActiveTab('users')} 
+          onClick={() => window.location.href = '/users'} 
         />
         <SidebarItem 
           icon={<Server />} 
@@ -66,7 +66,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
             icon={<LogOut />} 
             title="Logout" 
             collapsed={collapsed} 
-            onClick={() => alert('Logout clicked')} 
+            onClick={() => authAPI.logout()} 
           />
         </div>
       </nav>
