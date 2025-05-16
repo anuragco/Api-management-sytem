@@ -222,12 +222,10 @@ async function sendToGemini(promptText) {
   }
 }
 
-const CACHE_EXPIRATION = 3600; 
-
 app.post("/api/v3/modal/ai", checkApiAccess, async (req, res) => {
   const now = Date.now();
   
-  // Check cooldown
+  
   if (isRequestInProgress || now - lastRequestTime < COOLDOWN_MS) {
     logApiUsage(
       req,
@@ -264,38 +262,44 @@ app.post("/api/v3/modal/ai", checkApiAccess, async (req, res) => {
     // Generate a unique cache key
     const cacheKey = `ai_response:${Buffer.from(prompt).toString('base64')}`;
     
-    
     let response;
+    let isCacheHit = false; 
+    
     try {
       const cachedResponse = await redisClient.get(cacheKey);
       
       if (cachedResponse) {
-        
         console.log('Cache hit for prompt:', prompt);
         response = { answer: JSON.parse(cachedResponse) };
+        isCacheHit = true; 
       } else {
-        
         console.log('Cache miss for prompt:', prompt);
         const promptengineered = `Important: You are given a Questions along with 4 Options. You have to answer the question with the correct option name. Do not add any other text. Question: ${prompt}`;
         response = await sendToGemini(promptengineered);
         
-       
+        // If successful, cache the response
         if (response.answer && !response.error) {
-          await redisClient.setEx(
-            cacheKey,
-            CACHE_EXPIRATION,
-            JSON.stringify(response.answer.trim())
-          );
+          try {
+            await redisClient.setEx(
+              cacheKey,
+              CACHE_EXPIRATION,
+              JSON.stringify(response.answer.trim())
+            );
+          } catch (cacheError) {
+            console.error('Error caching response:', cacheError);
+            // Continue even if caching fails
+          }
         }
       }
     } catch (redisError) {
       console.error('Redis operation failed:', redisError);
       
+      // Fallback to direct API call if Redis fails
       const promptengineered = `Important: You are given a Questions along with 4 Options. You have to answer the question with the correct option name. Do not add any other text. Question: ${prompt}`;
       response = await sendToGemini(promptengineered);
     }
 
-    
+    // Reset request lock after cooldown
     setTimeout(() => {
       isRequestInProgress = false;
     }, COOLDOWN_MS);
@@ -313,7 +317,7 @@ app.post("/api/v3/modal/ai", checkApiAccess, async (req, res) => {
     }
 
     // Only increment API usage for non-cached responses
-    if (!cachedResponse) {
+    if (!isCacheHit) {
       try {
         await pool.query(
           "UPDATE users SET api_used = api_used + 1 WHERE registration_number = ?",
@@ -361,7 +365,6 @@ function gracefulShutdown() {
 // Listen for termination signals
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
-
 
 
 app.post("/api/users/increase-quota", authenticateToken, async (req, res) => {
