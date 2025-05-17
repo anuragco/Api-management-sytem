@@ -12,19 +12,19 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [filteredUsers, setFilteredUsers] = useState(users);
   
-  // Modal states
+
   const [increaseQuotaModal, setIncreaseQuotaModal] = useState(false);
   const [addUserModal, setAddUserModal] = useState(false);
   const [apiKeyModal, setApiKeyModal] = useState(false);
   
-  // Form and data states
+
   const [selectedUser, setSelectedUser] = useState(null);
   const [increaseAmount, setIncreaseAmount] = useState('');
   const [newUser, setNewUser] = useState({ regNo: '', name: '', apiLimit: 50 });
   const [showApiKey, setShowApiKey] = useState(false);
 
-  // Pagination
-  const itemsPerPage = 5;
+ 
+  const itemsPerPage = 15;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const [loading, setLoading] = useState(true);
@@ -38,14 +38,14 @@ export default function UsersPage() {
       const response = await apiClient.get('/api/users');
       
       if (response.data.success) {
-        // Transform the API response to match our component's expected format
+        
         const formattedUsers = response.data.users.map(user => ({
           id: user.id,
           regNo: user.registration_number,
           name: user.name,
           apiLimit: user.api_limit,
           apiUsed: user.api_used,
-          apiKey: null // API keys are not returned in the list for security
+          apiKey: null 
         }));
         
         setUsers(formattedUsers);
@@ -61,7 +61,7 @@ export default function UsersPage() {
     }
   };
 
-  // Fetch users on component mount
+ 
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -103,7 +103,7 @@ export default function UsersPage() {
       });
       
       if (response.data.success) {
-        // Update the local state
+       
         setUsers(users.map(u => (
           u.id === selectedUser.id
             ? { ...u, apiLimit: u.apiLimit + amount }
@@ -152,7 +152,7 @@ export default function UsersPage() {
         
         setUsers(prev => [...prev, userToAdd]);
         setSelectedUser(userToAdd);
-        setNewApiKey(response.data.api_key); // Store the new API key
+        setNewApiKey(response.data.api_key); 
         setAddUserModal(false);
         setApiKeyModal(true);
       } else {

@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Mock data for weekly chart - in a real app, this would come from your API
+  
   const weeklyData = [
     { name: 'Mon', requests: 1200, success: 1180, failed: 20 },
     { name: 'Tue', requests: 1400, success: 1350, failed: 50 },
@@ -34,7 +34,7 @@ export default function Dashboard() {
   
   const COLORS = ['#4CAF50', '#F44336'];
 
-  // Fetch analytics data
+ 
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
@@ -53,7 +53,7 @@ export default function Dashboard() {
     fetchAnalytics();
   }, []);
 
-  // Prepare pie chart data from API response
+ 
   const getPieData = () => {
     if (!analytics) return [];
     
@@ -63,7 +63,7 @@ export default function Dashboard() {
     ];
   };
 
-  // Parse error JSON from API response
+  
   const parseErrorJson = (errorJson) => {
     try {
       return JSON.parse(errorJson).error;

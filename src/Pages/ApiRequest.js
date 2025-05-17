@@ -8,11 +8,11 @@ export default function LogsTable() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // UI state
-  const [searchText, setSearchText] = useState('');                     // Search :contentReference[oaicite:5]{index=5}
-  const [filterStatus, setFilterStatus] = useState('all');              // Filter :contentReference[oaicite:6]{index=6}
-  const [currentPage, setCurrentPage] = useState(1);                    // Pagination :contentReference[oaicite:7]{index=7}
-  const [sortConfig, setSortConfig] = useState({ key: 'used_at', direction: 'desc' }); // Sort :contentReference[oaicite:8]{index=8}
+
+  const [searchText, setSearchText] = useState('');                     
+  const [filterStatus, setFilterStatus] = useState('all');              
+  const [currentPage, setCurrentPage] = useState(1);                    
+  const [sortConfig, setSortConfig] = useState({ key: 'used_at', direction: 'desc' }); 
 
  useEffect(() => {
   apiClient.get('/api/v3/api-log')
@@ -29,17 +29,14 @@ export default function LogsTable() {
     .finally(() => setLoading(false));
 }, []);
 
-  // 1️⃣ Filter, search & sort in one memo for performance
   const processedLogs = useMemo(() => {
     let arr = [...logs];
 
-    // Filter by status
     if (filterStatus !== 'all') {
       const code = Number(filterStatus);
       arr = arr.filter(log => log.response_status === code);
     }
 
-    // Text search
     if (searchText) {
       const q = searchText.toLowerCase();
       arr = arr.filter(log =>
@@ -49,7 +46,6 @@ export default function LogsTable() {
       );
     }
 
-    // Sorting
     if (sortConfig.key) {
       arr.sort((a, b) => {
         const aVal = a[sortConfig.key];
@@ -63,14 +59,12 @@ export default function LogsTable() {
     return arr;
   }, [logs, filterStatus, searchText, sortConfig]);
 
-  // 2️⃣ Pagination logic
   const pageCount = Math.ceil(processedLogs.length / ITEMS_PER_PAGE);
   const paginatedLogs = processedLogs.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // 3️⃣ Toggle sort direction
   const toggleSort = key => {
     setSortConfig(prev => ({
       key,

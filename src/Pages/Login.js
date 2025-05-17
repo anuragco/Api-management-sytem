@@ -11,14 +11,12 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState('');
   
   useEffect(() => {
-    // Trigger animations after component mount
+    
     setAnimateIn(true);
     
-    // Check if user is already logged in
+   
     if (authAPI.isAuthenticated()) {
-      // Redirect to dashboard or another protected route
-      // In a real app, you would use React Router for navigation
-      // Example: history.push('/dashboard');
+      
       console.log('User already authenticated');
     }
   }, []);
@@ -26,10 +24,10 @@ export default function Login() {
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     
-    // Clear previous errors
+   
     setErrorMessage('');
     
-    // Basic validation
+    
     if (!email || !password) {
       setErrorMessage('Please enter both email and password');
       return;
@@ -41,10 +39,9 @@ export default function Login() {
       const result = await authAPI.login(email, password);
       
       if (result.success) {
-        // In a real app, you would redirect to dashboard
-        // Example: history.push('/dashboard');
+        
         console.log('Login successful');
-        window.location.href = '/console'; // Simple redirect
+        window.location.href = '/console'; 
       } else {
         setErrorMessage(result.message || 'Login failed');
       }
@@ -55,8 +52,7 @@ export default function Login() {
       setIsLoading(false);
     }
     
-    // If remember me is not checked, we could set a shorter expiry time
-    // for the token in a real-world app
+    
   };
   
   return (
