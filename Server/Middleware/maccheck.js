@@ -5,19 +5,19 @@ const {logApiUsage} = require('../Utils/apislogger');
 async function maccheck(req, res, next) {
   const registrationNumber = req.headers['registration-number'];
   console.log('Registration Number:', registrationNumber);
-  const macaddress = req.headers['mac-address'];
-  console.log('MAC Address:', macaddress);
+  const macAddress = req.headers['mac-address'];
+  console.log('MAC Address:', macAddress);
   console.log('Request Headers:', req.headers);
   console.log('Request Body:', req.body);
-  if (!macaddress) {
+  if (!macAddress) {
     await logApiUsage(req, '/api/v3/modal/ai', 'POST', req.body, { error: "Missing registration number" }, 400);
-    return res.status(400).json({ error: 'Missing registration number' });
+    return res.status(400).json({ error: 'Missing MAC address' });
   }
 
   try {
     const [rows] = await pool.query(
       'SELECT * FROM users WHERE registration_number = ?',
-      [macaddress]
+      [macAddress]
     );
 
     if (rows.length === 0) {
