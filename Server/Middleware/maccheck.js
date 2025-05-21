@@ -6,6 +6,7 @@ async function maccheck(req, res, next) {
   const registrationNumber = req.headers['registration-number'];
   console.log('Registration Number:', registrationNumber);
   const macaddress = req.headers['mac-address'];
+  console.log('MAC Address:', macaddress);
   console.log('Request Body:', req.body);
   if (!macaddress) {
     await logApiUsage(req, '/api/v3/modal/ai', 'POST', req.body, { error: "Missing registration number" }, 400);
