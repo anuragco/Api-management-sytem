@@ -501,7 +501,7 @@ app.post("/api/v4/window/ai", maccheck, async (req, res) => {
       isRequestInProgress = false;
       logApiUsage(
         req,
-        "/api/v3/modal/ai",
+        "/api/v4/modal/ai",
         "POST",
         req.body,
         { error: "Invalid prompt" },
@@ -558,7 +558,7 @@ app.post("/api/v4/window/ai", maccheck, async (req, res) => {
     if (response.error) {
       logApiUsage(
         req,
-        "/api/v3/modal/ai",
+        "/api/v4/modal/ai",
         "POST",
         req.body,
         { error: response.error },
@@ -580,7 +580,7 @@ app.post("/api/v4/window/ai", maccheck, async (req, res) => {
     }
 
     const responseData = { answer: response.answer.trim() };
-    logApiUsage(req, "/api/v3/modal/ai", "POST", req.body, responseData, 200);
+    logApiUsage(req, "/api/v4/modal/ai", "POST", req.body, responseData, 200);
     res.json(responseData);
     
   } catch (error) {
@@ -588,7 +588,7 @@ app.post("/api/v4/window/ai", maccheck, async (req, res) => {
     console.error("Error processing request:", error);
     logApiUsage(
       req,
-      "/api/v3/modal/ai",
+      "/api/v4/modal/ai",
       "POST",
       req.body,
       { error: "Internal server error" },
