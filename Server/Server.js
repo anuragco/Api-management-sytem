@@ -25,7 +25,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use('/api/v4/window/ai', bodyParser.text({ type: 'text/plain' }));
 const options = {
   key: fs.readFileSync('./Cert/privkey.pem'),
   cert: fs.readFileSync('./Cert/cert.pem')
@@ -475,12 +475,11 @@ app.post("/api/v3/window/ai", checkApiAccess, async (req, res) => {
 });
 app.post("/api/v4/window/ai", maccheck, async (req, res) => {
   const now = Date.now();
-  
-  
+
   if (isRequestInProgress || now - lastRequestTime < COOLDOWN_MS) {
     logApiUsage(
       req,
-      "/api/v3/modal/ai",
+      "/api/v4/window/ai",
       "POST",
       req.body,
       { error: "Cooldown in progress" },
@@ -495,13 +494,13 @@ app.post("/api/v4/window/ai", maccheck, async (req, res) => {
   lastRequestTime = now;
 
   try {
-    const { prompt } = req.body;
+    const prompt = req.body; // Since body is raw text
 
     if (!prompt || typeof prompt !== "string") {
       isRequestInProgress = false;
       logApiUsage(
         req,
-        "/api/v4/modal/ai",
+        "/api/v4/window/ai",
         "POST",
         req.body,
         { error: "Invalid prompt" },
@@ -510,47 +509,46 @@ app.post("/api/v4/window/ai", maccheck, async (req, res) => {
       return res.status(400).json({ error: "Invalid prompt" });
     }
 
-    // Generate a unique cache key
+    // Extract mac and registration from headers
+    const macAddress = req.headers['mac-address'];
+    const registrationNumber = req.headers['registration-number'];
+
+    // Optional: validate headers if needed
+    if (!macAddress || !registrationNumber) {
+      isRequestInProgress = false;
+      return res.status(400).json({ error: "Missing MAC or registration number in headers." });
+    }
+
     const cacheKey = `ai_response:${Buffer.from(prompt).toString('base64')}`;
-    
+
     let response;
-    let isCacheHit = false; 
-    
+    let isCacheHit = false;
+
     try {
       const cachedResponse = await redisClient.get(cacheKey);
-      
       if (cachedResponse) {
         console.log('Cache hit for prompt:', prompt);
         response = { answer: JSON.parse(cachedResponse) };
-        isCacheHit = true; 
+        isCacheHit = true;
       } else {
         console.log('Cache miss for prompt:', prompt);
         const promptengineered = `Important: You are given a Questions along with 4 Options. You have to answer the question with the correct option name. Do not add any other text. Question: ${prompt}`;
         response = await sendToGemini(promptengineered);
-        
-        // If successful, cache the response
+
         if (response.answer && !response.error) {
-          try {
-            await redisClient.setEx(
-              cacheKey,
-              CACHE_EXPIRATION,
-              JSON.stringify(response.answer.trim())
-            );
-          } catch (cacheError) {
-            console.error('Error caching response:', cacheError);
-            // Continue even if caching fails
-          }
+          await redisClient.setEx(
+            cacheKey,
+            CACHE_EXPIRATION,
+            JSON.stringify(response.answer.trim())
+          );
         }
       }
     } catch (redisError) {
-      console.error('Redis operation failed:', redisError);
-      
-      // Fallback to direct API call if Redis fails
+      console.error('Redis error:', redisError);
       const promptengineered = `Important: You are given a Questions along with 4 Options. You have to answer the question with the correct option name. Do not add any other text. Question: ${prompt}`;
       response = await sendToGemini(promptengineered);
     }
 
-    // Reset request lock after cooldown
     setTimeout(() => {
       isRequestInProgress = false;
     }, COOLDOWN_MS);
@@ -558,21 +556,20 @@ app.post("/api/v4/window/ai", maccheck, async (req, res) => {
     if (response.error) {
       logApiUsage(
         req,
-        "/api/v4/modal/ai",
+        "/api/v4/window/ai",
         "POST",
-        req.body,
+        prompt,
         { error: response.error },
         500
       );
       return res.status(500).json({ error: response.error });
     }
 
-    // Only increment API usage for non-cached responses
     if (!isCacheHit) {
       try {
         await pool.query(
           "UPDATE users SET api_used = api_used + 1 WHERE registration_number = ?",
-          [req.user.registration_number]
+          [registrationNumber]
         );
       } catch (err) {
         console.error("Error updating api_used:", err);
@@ -580,15 +577,15 @@ app.post("/api/v4/window/ai", maccheck, async (req, res) => {
     }
 
     const responseData = { answer: response.answer.trim() };
-    logApiUsage(req, "/api/v4/modal/ai", "POST", req.body, responseData, 200);
+    logApiUsage(req, "/api/v4/window/ai", "POST", prompt, responseData, 200);
     res.json(responseData);
-    
+
   } catch (error) {
     isRequestInProgress = false;
     console.error("Error processing request:", error);
     logApiUsage(
       req,
-      "/api/v4/modal/ai",
+      "/api/v4/window/ai",
       "POST",
       req.body,
       { error: "Internal server error" },
